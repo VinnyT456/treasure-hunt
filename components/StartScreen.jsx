@@ -14,7 +14,7 @@ function Stars({ count, max = 3 }) {
   );
 }
 
-export default function StartScreen({ onStart, progress, onLevel6 }) {
+export default function StartScreen({ onStart, progress, difficulty, onDifficultyChange, badgesEarned, onLevel6, onClassChallenge }) {
   const level5Done = (progress[5] || 0) > 0;
 
   return (
@@ -34,6 +34,30 @@ export default function StartScreen({ onStart, progress, onLevel6 }) {
         Somewhere in this maze, a treasure is hidden. Pick a door, listen to the clues,
         and try to find it in as few moves as you can.
       </p>
+
+      <div className="difficulty" aria-label="Choose difficulty">
+        {[
+          { id: 'easy', label: 'Easy', note: 'More hints' },
+          { id: 'standard', label: 'Standard', note: 'Balanced' },
+          { id: 'expert', label: 'Expert', note: 'Fewer hints' },
+        ].map((option) => (
+          <button
+            key={option.id}
+            className={'difficulty__pill' + (difficulty === option.id ? ' difficulty__pill--active' : '')}
+            onClick={() => onDifficultyChange(option.id)}
+            type="button"
+          >
+            <strong>{option.label}</strong>
+            <span>{option.note}</span>
+          </button>
+        ))}
+      </div>
+
+      {badgesEarned?.length > 0 && (
+        <div className="start__badges">
+          Badges this visit: {badgesEarned.map((badge) => badge.label).join(', ')}
+        </div>
+      )}
 
       <div className="level-grid">
         {LEVELS.map((level, i) => {
@@ -71,6 +95,17 @@ export default function StartScreen({ onStart, progress, onLevel6 }) {
           {level5Done
             ? <div className="level-card__lock" aria-label="Unlocked" style={{ fontSize: '1.2rem' }}>✏️</div>
             : <div className="level-card__lock" aria-label="Locked">🔒</div>}
+        </button>
+
+        <button
+          className="level-card level-card--challenge"
+          onClick={onClassChallenge}
+          aria-label="Class challenge"
+        >
+          <div className="level-card__num">CLASS CHALLENGE</div>
+          <div className="level-card__name">Room Code Race</div>
+          <div className="level-card__sub">Join a teacher or friend code. Fewest moves wins on the board.</div>
+          <div className="level-card__lock" aria-label="Unlocked">🏁</div>
         </button>
       </div>
     </div>

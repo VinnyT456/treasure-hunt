@@ -1,6 +1,6 @@
 'use client';
 
-export default function Door({ index, displayNumber, attempt, disabled, eliminated, isReveal, onOpen }) {
+export default function Door({ index, displayNumber, attempt, disabled, eliminated, isReveal, suggested, onOpen }) {
   const isTried = !!attempt;
   const isFound = attempt?.feedback?.kind === 'found';
 
@@ -21,7 +21,8 @@ export default function Door({ index, displayNumber, attempt, disabled, eliminat
     <div className={
       'door-wrap' +
       (eliminated ? ' door-wrap--eliminated' : '') +
-      (isReveal ? ' door-wrap--reveal' : '')
+      (isReveal ? ' door-wrap--reveal' : '') +
+      (suggested && !isTried && !eliminated ? ' door-wrap--suggested' : '')
     }>
       <button
         className={
@@ -40,6 +41,9 @@ export default function Door({ index, displayNumber, attempt, disabled, eliminat
               (eliminated ? ', eliminated' : '')
         }
       >
+        {suggested && !isTried && !eliminated && (
+          <span className="door__hint-ring" aria-hidden="true">middle</span>
+        )}
         {isTried && (
           <span className="door__overlay" aria-hidden="true">
             {attempt.feedback.emoji || '✕'}

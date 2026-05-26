@@ -1,8 +1,10 @@
 'use client';
 
-export default function HUD({ level, moves, onBack, onJournalOpen, journalCount }) {
+export default function HUD({ level, moves, searchBounds, pulseZone, onBack, onJournalOpen, journalCount }) {
   const remaining = level.moveLimit ? level.moveLimit - moves : null;
   const warn = remaining !== null && remaining <= 2;
+  const doorsLeft = searchBounds ? searchBounds.right - searchBounds.left + 1 : null;
+  const doorsGone = searchBounds ? level.doorCount - doorsLeft : null;
 
   return (
     <div className="hud">
@@ -21,6 +23,18 @@ export default function HUD({ level, moves, onBack, onJournalOpen, journalCount 
           <div className={'hud__stat' + (warn ? ' hud__stat--warn' : '')}>
             <div className="hud__stat-label">Left</div>
             <div className="hud__stat-value">{Math.max(0, remaining)}</div>
+          </div>
+        )}
+        {doorsLeft !== null && (
+          <div className={'hud__stat hud__stat--zone' + (pulseZone ? ' hud__stat--pulse' : '')}>
+            <div className="hud__stat-label">Doors left</div>
+            <div className="hud__stat-value">{doorsLeft}</div>
+          </div>
+        )}
+        {doorsGone > 0 && (
+          <div className="hud__stat">
+            <div className="hud__stat-label">Ruled out</div>
+            <div className="hud__stat-value">{doorsGone}</div>
           </div>
         )}
         {onJournalOpen && (

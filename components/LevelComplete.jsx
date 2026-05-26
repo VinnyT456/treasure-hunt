@@ -1,7 +1,13 @@
 'use client';
 
 import { computeStarsAdvanced } from '@/lib/gameLogic';
+import { computeEarnedBadges } from '@/lib/badges';
 import StrategyBuilder from './StrategyBuilder';
+import LevelLeaderboard from './LevelLeaderboard';
+import PathStepper from './PathStepper';
+import SearchTypeQuiz from './SearchTypeQuiz';
+import EarnedBadges from './EarnedBadges';
+import SearchCompareDemo from './SearchCompareDemo';
 
 function CriteriaStars({ criteria, maxStars, earned }) {
   return (
@@ -26,82 +32,105 @@ function CriteriaStars({ criteria, maxStars, earned }) {
   );
 }
 
-function Path({ attempts, treasureIndex, doorCount }) {
-  return (
-    <div className="path">
-      <div className="path__title">Your path through the maze</div>
-      <div className="path__row">
-        {attempts.map((a, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span
-              className={'path__step' + (a.feedback.kind === 'found' ? ' path__step--found' : '')}
-              style={a.feedback.color && a.feedback.kind !== 'found'
-                ? { background: a.feedback.color, color: '#FFF8EC', borderColor: 'rgba(0,0,0,0.2)' }
-                : undefined}
-            >
-              #{a.doorIndex + 1}
-            </span>
-            {i < attempts.length - 1 && <span className="path__arrow">→</span>}
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 10, fontFamily: 'Caveat, cursive', fontSize: '1.05rem', color: 'var(--ink-soft)' }}>
-        Treasure was behind door <strong style={{ color: 'var(--gold-deep)' }}>#{treasureIndex + 1}</strong> · {doorCount} doors total
-      </div>
-    </div>
-  );
-}
-
 export default function LevelComplete({ result, hasNext, isCustom, onNext, onReplay, onMenu, onJournalAdd, onJournalOpen, journalCount }) {
   const { level, attempts, treasureIndex, status } = result;
   const { stars, maxStars, criteria } = computeStarsAdvanced(attempts, level, status);
   const won = status === 'won';
+  const showLeaderboard = won && !isCustom;
+  const badges = result.badges || computeEarnedBadges(result);
 
   return (
     <div className="complete">
-      <div className="complete__banner">{won ? '~ level complete ~' : '~ out of moves ~'}</div>
-      <h2 className="complete__title">{won ? 'You found it!' : 'So close!'}</h2>
+      <header className="complete__header">
+        <div className="complete__banner">{won ? '~ level complete ~' : '~ out of moves ~'}</div>
+        <h2 className="complete__title">{won ? 'You found it!' : 'So close!'}</h2>
+      </header>
 
-      <CriteriaStars criteria={criteria} maxStars={maxStars} earned={stars} />
+      <div className={'complete__body' + (showLeaderboard ? '' : ' complete__body--single')}>
+        <div className="complete__main complete__column-card">
+          <CriteriaStars criteria={criteria} maxStars={maxStars} earned={stars} />
 
-      <div className="summary">
-        {isCustom && level.code && (
-          <div className="summary__row">
-            <span>Room code</span>
-            <strong style={{ fontFamily: 'Caveat, cursive', fontSize: '1.3rem', letterSpacing: 1 }}>{level.code}</strong>
+          <div className="summary">
+            {isCustom && level.code && (
+              <div className="summary__row">
+                <span>Room code</span>
+                <strong style={{ fontFamily: 'Caveat, cursive', fontSize: '1.3rem', letterSpacing: 1 }}>{level.code}</strong>
+              </div>
+            )}
+            <div className="summary__row">
+              <span>Moves used</span>
+              <strong>{attempts.length}</strong>
+            </div>
+            <div className="summary__row">
+              <span>Doors in maze</span>
+              <strong>{level.doorCount}</strong>
+            </div>
+            {level.moveLimit && (
+              <div className="summary__row">
+                <span>Move limit</span>
+                <strong>{level.moveLimit}</strong>
+              </div>
+            )}
+            {result.difficulty && result.difficulty !== 'standard' && (
+              <div className="summary__row">
+                <span>Mode</span>
+                <strong>{result.difficulty}</strong>
+              </div>
+            )}
+            {won && result.race?.linearMoves && (
+              <div className="summary__row">
+                <span>Penny needed</span>
+                <strong>{result.race.linearMoves} checks</strong>
+              </div>
+            )}
           </div>
-        )}
-        <div className="summary__row">
-          <span>Moves used</span>
-          <strong>{attempts.length}</strong>
+
+          <PathStepper attempts={attempts} treasureIndex={treasureIndex} doorCount={level.doorCount} />
+
+          {won && !isCustom && (
+            <SearchTypeQuiz attempts={attempts} level={level} />
+          )}
+
+          {won && (
+            <EarnedBadges badges={badges} />
+          )}
+
+          {won && level.id === 5 && (
+            <SearchCompareDemo attempts={attempts} treasureIndex={treasureIndex} doorCount={level.doorCount} />
+          )}
+
+          {won && isCustom && level.code && (
+            <div className="class-share">
+              Tell friends: code <strong>{level.code}</strong> — fewest moves wins!
+            </div>
+          )}
+
+          {won && !isCustom && (
+            <StrategyBuilder
+              levelId={level.id}
+              levelName={level.name}
+              onSave={onJournalAdd}
+            />
+          )}
+
+          {journalCount > 0 && (
+            <button className="btn btn--ghost complete__journal-btn" onClick={onJournalOpen}>
+              📓 View Strategy Journal ({journalCount} {journalCount === 1 ? 'entry' : 'entries'})
+            </button>
+          )}
         </div>
-        <div className="summary__row">
-          <span>Doors in maze</span>
-          <strong>{level.doorCount}</strong>
-        </div>
-        {level.moveLimit && (
-          <div className="summary__row">
-            <span>Move limit</span>
-            <strong>{level.moveLimit}</strong>
-          </div>
+
+        {showLeaderboard && (
+          <aside className="complete__aside">
+            <LevelLeaderboard
+              levelId={level.id}
+              levelName={level.name}
+              stars={stars}
+              moves={attempts.length}
+            />
+          </aside>
         )}
       </div>
-
-      <Path attempts={attempts} treasureIndex={treasureIndex} doorCount={level.doorCount} />
-
-      {won && !isCustom && (
-        <StrategyBuilder
-          levelId={level.id}
-          levelName={level.name}
-          onSave={onJournalAdd}
-        />
-      )}
-
-      {journalCount > 0 && (
-        <button className="btn btn--ghost complete__journal-btn" onClick={onJournalOpen}>
-          📓 View Strategy Journal ({journalCount} {journalCount === 1 ? 'entry' : 'entries'})
-        </button>
-      )}
 
       <div className="complete__actions">
         <button className="btn btn--ghost" onClick={onMenu}>Menu</button>

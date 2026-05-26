@@ -39,8 +39,8 @@ export default function JoinFlow({ onPlay, onBack }) {
         <div className="join__emoji" aria-hidden="true">🔑</div>
         <h2 className="join__title">Enter a Room Code</h2>
         <p className="join__sub">
-          Your friend who built the level will share a code like <strong>BRAVE-TIGER</strong>.
-          Type it below and hit Go!
+          Your teacher or friend will share a code like <strong>BRAVE-TIGER</strong>.
+          Type it below, race the maze, and compare fewest moves!
         </p>
 
         <input

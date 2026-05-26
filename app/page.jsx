@@ -10,6 +10,7 @@ import MakerFlow from '@/components/MakerFlow';
 import JoinFlow from '@/components/JoinFlow';
 import StrategyJournal from '@/components/StrategyJournal';
 import { LEVELS } from '@/lib/levels';
+import { computeEarnedBadges } from '@/lib/badges';
 
 const SCREENS = {
   START:   'start',
@@ -27,10 +28,10 @@ export default function Page() {
   const [customLevel, setCustomLevel] = useState(null);
   const [lastResult, setLastResult] = useState(null);
   const [progress, setProgress] = useState({});
-
-  // Journal state
   const [journal, setJournal] = useState([]);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [difficulty, setDifficulty] = useState('standard');
+  const [badgesEarned, setBadgesEarned] = useState([]);
 
   const handleStart = useCallback((id) => {
     setCustomLevel(null);
@@ -44,7 +45,13 @@ export default function Page() {
   }, []);
 
   const handleLevelDone = useCallback((result) => {
-    setLastResult(result);
+    const badges = computeEarnedBadges(result);
+    setLastResult({ ...result, badges });
+    setBadgesEarned((prev) => {
+      const seen = new Set(prev.map((badge) => badge.id));
+      const next = badges.filter((badge) => !seen.has(badge.id));
+      return next.length ? [...prev, ...next] : prev;
+    });
     if (result.level.id !== 'custom') {
       setProgress((prev) => {
         const prior = prev[result.level.id] || 0;
@@ -83,7 +90,11 @@ export default function Page() {
         <StartScreen
           onStart={handleStart}
           progress={progress}
+          difficulty={difficulty}
+          onDifficultyChange={setDifficulty}
+          badgesEarned={badgesEarned}
           onLevel6={() => setScreen(SCREENS.LEVEL6)}
+          onClassChallenge={() => setScreen(SCREENS.JOIN)}
         />
       )}
 
@@ -108,6 +119,7 @@ export default function Page() {
           key={isCustomGame ? `custom-${customLevel.code}-${Date.now()}` : `${activeLevelId}-${Date.now()}`}
           levelId={isCustomGame ? undefined : activeLevelId}
           levelConfig={isCustomGame ? customLevel : undefined}
+          difficulty={difficulty}
           onComplete={handleLevelDone}
           onBack={handleBackToMenu}
           onJournalOpen={() => setJournalOpen(true)}

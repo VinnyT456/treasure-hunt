@@ -2,7 +2,7 @@
 
 import { TEMPERATURE_LEVELS } from '@/lib/gameLogic';
 
-export default function FeedbackPanel({ feedback, level }) {
+export default function FeedbackPanel({ feedback, level, predictionResult }) {
   if (!feedback) {
     return (
       <div className="feedback feedback--idle">
@@ -21,7 +21,7 @@ export default function FeedbackPanel({ feedback, level }) {
 
   if (feedback.kind === 'direction' && feedback.key !== 'found') {
     return (
-      <div className="feedback" style={style}>
+      <div className={'feedback' + feedbackClass(predictionResult)} style={style}>
         <div className="feedback__emoji" aria-hidden="true">👻</div>
         <div className="feedback__text">
           <div className="feedback__label">
@@ -29,7 +29,9 @@ export default function FeedbackPanel({ feedback, level }) {
               ? <><span className="feedback__arrow">←</span> Treasure is to the LEFT</>
               : <>Treasure is to the RIGHT <span className="feedback__arrow">→</span></>}
           </div>
-          <div className="feedback__detail">whispers the friendly ghost</div>
+          <div className="feedback__detail">
+            {predictionText(predictionResult) || 'whispers the friendly ghost'}
+          </div>
         </div>
       </div>
     );
@@ -60,6 +62,18 @@ export default function FeedbackPanel({ feedback, level }) {
       {level.feedbackType === 'distance' && <TempLegend doorCount={level.doorCount} activeTempKey={feedback.key} />}
     </div>
   );
+}
+
+function feedbackClass(predictionResult) {
+  if (predictionResult === 'correct') return ' feedback--prediction-correct';
+  if (predictionResult === 'wrong') return ' feedback--prediction-wrong';
+  return '';
+}
+
+function predictionText(predictionResult) {
+  if (predictionResult === 'correct') return 'You called it!';
+  if (predictionResult === 'wrong') return 'Good guess. Now follow the clue.';
+  return '';
 }
 
 // Horizontal temperature scale legend for distance-based levels.

@@ -84,3 +84,15 @@ phones, tablets, and laptops, and needs nothing to install.
 Pick a door. Find the treasure. Get faster every time.
 
 🏆
+
+---
+
+## 🛠️ Leaderboard
+
+After each campaign win you’ll see a **preview leaderboard**: pretend names,
+stars, and moves so you can try the UI without wiring up a backend. Progress
+and journal entries last for your current visit only (they reset on reload).
+
+If you ever want shared real scores via Supabase, there is starter SQL in
+[`docs/leaderboard-schema.sql`](docs/leaderboard-schema.sql); you’d plug it
+into the app separately from this demo view.
