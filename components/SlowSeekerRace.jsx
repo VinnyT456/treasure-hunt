@@ -1,17 +1,29 @@
 'use client';
 
-export default function SlowSeekerRace({ playerMoves, linearMoves, doorCount, gap }) {
+export default function SlowSeekerRace({
+  playerMoves,
+  linearMoves,
+  doorCount,
+  gap,
+  rivalName = 'Penny the Linear Seeker',
+  rivalShortName = 'Penny',
+}) {
   const playerPct = Math.min(100, (playerMoves / Math.max(1, doorCount)) * 100);
-  const pennyPct = Math.min(100, (Math.min(linearMoves, playerMoves * 3) / Math.max(1, doorCount)) * 100);
+  const rivalPct = Math.min(100, (linearMoves / Math.max(1, doorCount)) * 100);
 
   return (
     <div className="race">
       <div className="race__header">
-        <span className="race__title">Beat Penny the Linear Seeker</span>
-        <span className="race__gap">{gap > 0 ? `saving ${gap} checks` : 'race begins now'}</span>
+        <span className="race__title">Beat {rivalName}</span>
+        <span className="race__gap">{gap > 0 ? `${gap} fewer doors opened` : 'race begins now'}</span>
       </div>
       <RaceLane label="You" value={`${playerMoves} move${playerMoves !== 1 ? 's' : ''}`} pct={playerPct} />
-      <RaceLane label="Penny" value={`${linearMoves} checks so far`} pct={pennyPct} muted />
+      <RaceLane
+        label={rivalShortName}
+        value={`${linearMoves} door${linearMoves !== 1 ? 's' : ''} opened`}
+        pct={rivalPct}
+        muted
+      />
     </div>
   );
 }

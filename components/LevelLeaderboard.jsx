@@ -83,17 +83,31 @@ function npcsForLevel(levelId) {
   return MOCK_NPCS_BY_LEVEL[levelId] ?? MOCK_NPCS_BY_LEVEL[1];
 }
 
-export default function LevelLeaderboard({ levelId, levelName, stars, moves }) {
-  const [savedName, setSavedName] = useState('');
-  const [nameDraft, setNameDraft] = useState('');
-  const [sessionBest, setSessionBest] = useState(null);
+export default function LevelLeaderboard({
+  levelId,
+  levelName,
+  stars,
+  moves,
+  maxStars = 3,
+  savedEntry,
+  playerName,
+  onPlayerNameChange,
+}) {
+  const [savedName, setSavedName] = useState(playerName || '');
+  const [nameDraft, setNameDraft] = useState(playerName || '');
+  const [sessionBest, setSessionBest] = useState(savedEntry || null);
   const [nameError, setNameError] = useState('');
 
   useEffect(() => {
+    if (playerName) {
+      setSavedName(playerName);
+      setNameDraft(playerName);
+      return;
+    }
     const name = suggestPlayerName();
     setSavedName(name);
     setNameDraft(name);
-  }, []);
+  }, [playerName]);
 
   useEffect(() => {
     setSessionBest((prev) => {
@@ -140,6 +154,7 @@ export default function LevelLeaderboard({ levelId, levelName, stars, moves }) {
     setSavedName(normalized);
     setNameDraft(normalized);
     setNameError('');
+    onPlayerNameChange?.(normalized);
   }
 
   function handleRandomName() {
@@ -203,9 +218,7 @@ export default function LevelLeaderboard({ levelId, levelName, stars, moves }) {
                 className={`leaderboard__row leaderboard__row--rank${rank}${isYou ? ' leaderboard__row--you' : ''}`}
               >
                 <span className="leaderboard__rank">{rankBadge}</span>
-                <span className="leaderboard__name">
-                  {isYou ? `You — ${label}` : label}
-                </span>
+                <span className="leaderboard__name">{label}</span>
                 <span className="leaderboard__stats">
                   <span className="leaderboard__stars">{formatStars(entry.stars)}</span>
                   <span aria-hidden="true">·</span>

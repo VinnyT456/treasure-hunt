@@ -1,6 +1,7 @@
 'use client';
 
 import { TEMPERATURE_LEVELS } from '@/lib/gameLogic';
+import GhostMascot from './GhostMascot';
 
 export default function FeedbackPanel({ feedback, level, predictionResult }) {
   if (!feedback) {
@@ -22,7 +23,7 @@ export default function FeedbackPanel({ feedback, level, predictionResult }) {
   if (feedback.kind === 'direction' && feedback.key !== 'found') {
     return (
       <div className={'feedback' + feedbackClass(predictionResult)} style={style}>
-        <div className="feedback__emoji" aria-hidden="true">👻</div>
+        <GhostMascot size={44} className="feedback__ghost" />
         <div className="feedback__text">
           <div className="feedback__label">
             {feedback.key === 'left'

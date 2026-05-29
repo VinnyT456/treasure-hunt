@@ -1,20 +1,18 @@
 'use client';
 
 import { LEVELS } from '@/lib/levels';
+import StarRating from './StarRating';
 
-function Stars({ count, max = 3 }) {
-  return (
-    <div className="level-card__stars">
-      {Array.from({ length: max }).map((_, i) => (
-        <span key={i} className={'level-card__star' + (i < count ? '' : ' level-card__star--off')}>
-          ★
-        </span>
-      ))}
-    </div>
-  );
-}
-
-export default function StartScreen({ onStart, progress, difficulty, onDifficultyChange, badgesEarned, onLevel6, onClassChallenge }) {
+export default function StartScreen({
+  onStart,
+  progress,
+  difficulty,
+  onDifficultyChange,
+  badgesEarned,
+  onLevel6,
+  onClassChallenge,
+  onBadges,
+}) {
   const level5Done = (progress[5] || 0) > 0;
 
   return (
@@ -37,9 +35,9 @@ export default function StartScreen({ onStart, progress, difficulty, onDifficult
 
       <div className="difficulty" aria-label="Choose difficulty">
         {[
-          { id: 'easy', label: 'Easy', note: 'More hints' },
-          { id: 'standard', label: 'Standard', note: 'Balanced' },
-          { id: 'expert', label: 'Expert', note: 'Fewer hints' },
+          { id: 'easy', label: 'Easy', note: 'Hints after every try' },
+          { id: 'standard', label: 'Standard', note: 'One starting hint' },
+          { id: 'expert', label: 'Expert', note: 'No hints' },
         ].map((option) => (
           <button
             key={option.id}
@@ -53,11 +51,13 @@ export default function StartScreen({ onStart, progress, difficulty, onDifficult
         ))}
       </div>
 
-      {badgesEarned?.length > 0 && (
-        <div className="start__badges">
-          Badges this visit: {badgesEarned.map((badge) => badge.label).join(', ')}
-        </div>
-      )}
+      <div className="start__links">
+        {onBadges && (
+          <button className="btn btn--ghost start__badges-btn" type="button" onClick={onBadges}>
+            🪙 My Coin Collection ({badgesEarned?.length || 0})
+          </button>
+        )}
+      </div>
 
       <div className="level-grid">
         {LEVELS.map((level, i) => {
@@ -77,12 +77,11 @@ export default function StartScreen({ onStart, progress, difficulty, onDifficult
               <div className="level-card__sub">{level.subtitle}</div>
               {locked
                 ? <div className="level-card__lock" aria-label="Locked">🔒</div>
-                : <Stars count={earned} max={level.maxStars ?? 3} />}
+                : <StarRating count={earned} max={level.maxStars ?? 3} size="sm" className="level-card__stars" />}
             </button>
           );
         })}
 
-        {/* Level 6 — Maker Mode, unlocked after Level 5 */}
         <button
           className={'level-card level-card--maker' + (level5Done ? '' : ' level-card--maker-locked')}
           disabled={!level5Done}
@@ -91,21 +90,32 @@ export default function StartScreen({ onStart, progress, difficulty, onDifficult
         >
           <div className="level-card__num">LEVEL 6</div>
           <div className="level-card__name">Maker Mode</div>
-          <div className="level-card__sub">Build your own maze or join a friend's.</div>
+          <div className="level-card__sub">
+            {level5Done
+              ? 'Build your own maze — you have learned linear search, hot/cold clues, and splitting the search.'
+              : 'Complete Level 5 to unlock.'}
+          </div>
           {level5Done
             ? <div className="level-card__lock" aria-label="Unlocked" style={{ fontSize: '1.2rem' }}>✏️</div>
             : <div className="level-card__lock" aria-label="Locked">🔒</div>}
         </button>
 
         <button
-          className="level-card level-card--challenge"
-          onClick={onClassChallenge}
+          className={'level-card level-card--challenge' + (level5Done ? '' : ' level-card--challenge-locked')}
+          disabled={!level5Done}
+          onClick={() => level5Done && onClassChallenge()}
           aria-label="Class challenge"
         >
           <div className="level-card__num">CLASS CHALLENGE</div>
           <div className="level-card__name">Room Code Race</div>
-          <div className="level-card__sub">Join a teacher or friend code. Fewest moves wins on the board.</div>
-          <div className="level-card__lock" aria-label="Unlocked">🏁</div>
+          <div className="level-card__sub">
+            {level5Done
+              ? 'Join a teacher or friend code. Fewest moves wins on the board.'
+              : 'Complete Level 5 to unlock.'}
+          </div>
+          {level5Done
+            ? <div className="level-card__lock" aria-label="Unlocked">🏁</div>
+            : <div className="level-card__lock" aria-label="Locked">🔒</div>}
         </button>
       </div>
     </div>

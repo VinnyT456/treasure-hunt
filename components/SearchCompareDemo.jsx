@@ -43,7 +43,7 @@ function CompareLane({ title, count, steps, treasureIndex, muted }) {
     <div className={'compare__lane' + (muted ? ' compare__lane--muted' : '')}>
       <div className="compare__lane-head">
         <strong>{title}</strong>
-        <span>{count} door{count !== 1 ? 's' : ''} checked</span>
+        <span>{count} door{count !== 1 ? 's' : ''} opened</span>
       </div>
       <div className="compare__chips">
         {shown.map((door) => (

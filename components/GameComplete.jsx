@@ -1,19 +1,25 @@
 'use client';
 
 import { LEVELS } from '@/lib/levels';
+import StarRating from './StarRating';
+import CampaignLeaderboard from './CampaignLeaderboard';
 
-export default function GameComplete({ progress, onMenu, onMaker, onRetry }) {
+export default function GameComplete({ progress, leaderboard, playerName, onMenu, onMaker, onBadges, onRetry }) {
   const total = LEVELS.reduce((s, l) => s + (progress[l.id] || 0), 0);
   const max = LEVELS.reduce((s, l) => s + l.maxStars, 0);
+  const totalMoves = LEVELS.reduce((s, l) => {
+    const entry = leaderboard?.[String(l.id)];
+    return s + (entry?.moves || 0);
+  }, 0);
 
   return (
     <div className="finish">
       <div className="finish__chest" aria-hidden="true">🏆</div>
       <h2 className="finish__title">You did it!</h2>
       <p className="finish__msg">
-        You started by opening doors randomly and ended by using BINARY SEARCH to beat
-        a 100-door maze in just 7 moves. This is an example of how real algorithms work — they
-        split the problem in half over and over until the answer is the only thing left.
+        You started by opening doors one at a time and ended by splitting the hallway in half
+        to beat a 100-door maze in just 7 moves. That strategy is called binary search — real
+        computers use it to find things fast.
       </p>
       <div className="summary" style={{ marginTop: 8 }}>
         <div className="summary__row">
@@ -36,19 +42,32 @@ export default function GameComplete({ progress, onMenu, onMaker, onRetry }) {
                     Retry
                   </button>
                 )}
-                <strong>{'★'.repeat(earned)}{'☆'.repeat(l.maxStars - earned)}</strong>
+                <StarRating count={earned} max={l.maxStars} size="sm" />
               </span>
             </div>
           );
         })}
       </div>
+
+      <CampaignLeaderboard
+        progress={progress}
+        playerName={playerName}
+        playerMoves={totalMoves || undefined}
+      />
+
       <div className="finish__next" style={{ marginTop: 24, textAlign: 'center' }}>
         <p style={{ marginBottom: 8, fontWeight: 600 }}>Level 6 — Maker Mode</p>
         <p style={{ marginBottom: 12, fontSize: '0.9rem', color: '#64748b' }}>
-          Now build your own maze and challenge a friend!
+          Build your own maze and challenge a friend!
         </p>
         <button className="btn" onClick={onMaker}>Enter Maker Mode →</button>
       </div>
+
+      {onBadges && (
+        <button className="btn btn--ghost" type="button" onClick={onBadges} style={{ marginTop: 10 }}>
+          🪙 My Coin Collection
+        </button>
+      )}
       <button className="btn btn--ghost" onClick={onMenu} style={{ marginTop: 10 }}>Back to Menu</button>
     </div>
   );

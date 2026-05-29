@@ -155,29 +155,34 @@ function StepTreasure({ doorCount, treasureMode, treasureDoor, onModeChange, onD
 // ─── Step 3: what clues the ghost gives ──────────────────────────────────────
 const CLUE_OPTIONS = [
   {
-    value: 'direction',
-    emoji: '👻',
-    label: 'Left or Right',
-    desc: 'Ghost tells which side the treasure is on. Teaches binary search.',
+    value: 'none',
+    emoji: '🤫',
+    label: 'Silent maze',
+    desc: 'No clues — pure guessing (Level 1 style).',
   },
   {
     value: 'distance',
     emoji: '🌡️',
-    label: 'Hot or Cold',
-    desc: 'Ghost whispers how close you are.',
+    label: 'Hot / Cold distance clues',
+    desc: 'Each door tells how far the treasure is (Level 2 — linear-friendly).',
   },
   {
-    value: 'none',
-    emoji: '🤫',
-    label: 'Silent',
-    desc: 'No clues at all. Pure luck and linear searching.',
+    value: 'direction',
+    emoji: '👻',
+    label: 'Left / Right split clues',
+    desc: 'Eliminate half the maze each try (Level 3+ — binary-friendly).',
   },
 ];
 
-function StepClues({ feedbackType, onChange }) {
+function StepClues({ feedbackType, onChange, binarySeen }) {
   return (
     <div className="maker__step-body">
       <p className="maker__hint">What clues does the ghost give?</p>
+      {!binarySeen && (
+        <p className="maker__hint maker__hint--note">
+          Left/Right clues work best after you have learned to split the search (Level 3+).
+        </p>
+      )}
       <div className="maker__clue-list">
         {CLUE_OPTIONS.map((opt) => (
           <button
@@ -258,7 +263,7 @@ function StepMoves({ doorCount, hasLimit, moveLimit, onHasLimitChange, onMoveLim
 }
 
 // ─── Step 5: the generated code ──────────────────────────────────────────────
-function StepDone({ code, onPlay, onBack }) {
+function StepDone({ code, onPlay, onBack, savedLocally }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -278,6 +283,9 @@ function StepDone({ code, onPlay, onBack }) {
 
       <p className="maker__done-sub">
         Friends go to the main menu and press <strong>Enter a Code</strong>, then type this in.
+        {savedLocally && (
+          <> Saved on <strong>this device</strong> — share the code with friends on the same computer, or set up Supabase to share online.</>
+        )}
       </p>
 
       <div className="maker__done-actions">
@@ -293,7 +301,7 @@ function StepDone({ code, onPlay, onBack }) {
 }
 
 // ─── Main wizard ──────────────────────────────────────────────────────────────
-export default function MakerFlow({ onPlay, onBack }) {
+export default function MakerFlow({ onPlay, onBack, tutorialsSeen }) {
   const [step, setStep] = useState(0);
   const [doorCount, setDoorCount] = useState(20);
   const [treasureMode, setTreasureMode] = useState('random');
@@ -302,6 +310,7 @@ export default function MakerFlow({ onPlay, onBack }) {
   const [hasLimit, setHasLimit] = useState(false);
   const [moveLimit, setMoveLimit] = useState(minMoves(20));
   const [code, setCode] = useState(null);
+  const [savedLocally, setSavedLocally] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
@@ -324,10 +333,11 @@ export default function MakerFlow({ onPlay, onBack }) {
     const result = await saveLevel(newCode, config);
     setSaving(false);
     if (!result.ok) {
-      setSaveError('Could not save your level. Please try again.');
+      setSaveError(result.error || 'Could not save your level. Please try again.');
       return;
     }
     setCode(newCode);
+    setSavedLocally(result.storage === 'local');
     setStep(STEPS.length - 1);
   }, [step, doorCount, treasureMode, treasureDoor, feedbackType, hasLimit, moveLimit]);
 
@@ -376,7 +386,7 @@ export default function MakerFlow({ onPlay, onBack }) {
         />
       )}
       {step === 2 && (
-        <StepClues feedbackType={feedbackType} onChange={setFeedbackType} />
+        <StepClues feedbackType={feedbackType} onChange={setFeedbackType} binarySeen={tutorialsSeen?.binarySeen} />
       )}
       {step === 3 && (
         <StepMoves
@@ -388,7 +398,7 @@ export default function MakerFlow({ onPlay, onBack }) {
         />
       )}
       {step === 4 && code && (
-        <StepDone code={code} onPlay={handlePlay} onBack={onBack} />
+        <StepDone code={code} onPlay={handlePlay} onBack={onBack} savedLocally={savedLocally} />
       )}
 
       {step < STEPS.length - 1 && (

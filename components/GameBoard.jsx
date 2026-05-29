@@ -7,42 +7,41 @@ import FeedbackPanel from './FeedbackPanel';
 import ClueHistory from './ClueHistory';
 import SearchBracket from './SearchBracket';
 import PredictionBar from './PredictionBar';
-import MiddleDoorHint from './MiddleDoorHint';
+import ContextualHint from './ContextualHint';
 import SlowSeekerRace from './SlowSeekerRace';
 import { getLevel } from '@/lib/levels';
 import { computeFeedback, chooseTreasureIndex, relocateTreasureIfNeeded, computeStarsAdvanced } from '@/lib/gameLogic';
 import { getLinearSeekerPath } from '@/lib/linearSeekerSim';
-import { getDoorWindowSize, getSuggestedMiddle, isNearMiddle } from '@/lib/searchHints';
+import { getWarmSeekerPath } from '@/lib/warmSeekerSim';
+import { getSuggestedMiddle, getDoorWindowSize, isNearMiddle } from '@/lib/searchHints';
+import { getHintPolicy } from '@/lib/hintPolicy';
+import { getLevelIntro } from '@/lib/tutorials';
 
 function applyDifficulty(level, difficulty = 'standard') {
   if (level.id === 'custom') return { ...level, difficulty };
-  if (difficulty === 'easy' && level.moveLimit) {
-    return {
-      ...level,
-      moveLimit: level.moveLimit + 1,
-      efficiencyMoves: (level.efficiencyMoves ?? level.moveLimit) + 1,
-      difficulty,
-      difficultyNote: 'Easy mode gives one bonus move.',
-    };
-  }
   return { ...level, difficulty };
 }
 
-function init({ level }) {
+function init({ level, tutorialsSeen }) {
   const treasureIndex =
     level.treasureOverride !== undefined && level.treasureOverride !== null
       ? level.treasureOverride
       : chooseTreasureIndex(level);
   return {
-    level,
+    level: {
+      ...level,
+      intro: getLevelIntro(level, tutorialsSeen),
+    },
     treasureIndex,
     attempts: [],
     tried: {},
     lastFeedback: null,
     lastPredictionResult: null,
     pendingPrediction: null,
+    predictionEnabled: false,
     predictionStats: { correct: 0, total: 0, streak: 0, bestStreak: 0 },
     middleHintDismissed: false,
+    openingHintShown: false,
     zonePulseToken: 0,
     status: 'playing',
     searchBounds: level.feedbackType === 'direction'
@@ -57,7 +56,9 @@ function reducer(state, action) {
       if (state.status !== 'playing') return state;
       const { doorIndex } = action;
       if (state.tried[doorIndex]) return state;
-      if (state.searchBounds && state.pendingPrediction === null) return state;
+
+      const needsPrediction = state.predictionEnabled && state.pendingPrediction === null;
+      if (needsPrediction) return state;
 
       const triedSet = new Set(Object.keys(state.tried).map(Number));
       const previousBounds = state.searchBounds;
@@ -66,7 +67,7 @@ function reducer(state, action) {
         state.attempts.length, state.searchBounds, state.attempts
       );
       const feedback = computeFeedback(state.level, doorIndex, treasureIndex);
-      const prediction = state.pendingPrediction;
+      const prediction = state.predictionEnabled ? state.pendingPrediction : null;
       const predictionResult =
         feedback.kind === 'direction' && (prediction === 'left' || prediction === 'right')
           ? prediction === feedback.key ? 'correct' : 'wrong'
@@ -106,6 +107,7 @@ function reducer(state, action) {
         pendingPrediction: null,
         predictionStats,
         middleHintDismissed,
+        openingHintShown: true,
         status,
         searchBounds,
         zonePulseToken,
@@ -114,16 +116,17 @@ function reducer(state, action) {
     case 'SET_PREDICTION':
       if (state.status !== 'playing') return state;
       return { ...state, pendingPrediction: action.prediction };
-    case 'SKIP_PREDICTION':
-      if (state.status !== 'playing') return state;
-      return { ...state, pendingPrediction: 'skip' };
+    case 'ENABLE_PREDICTION':
+      return { ...state, predictionEnabled: true };
     case 'DISMISS_MIDDLE_HINT':
       return { ...state, middleHintDismissed: true };
+    case 'MARK_OPENING_HINT':
+      return { ...state, openingHintShown: true };
     case 'CLEAR_ZONE_PULSE':
       if (action.token !== state.zonePulseToken) return state;
       return { ...state, zonePulseToken: 0 };
     case 'RESET':
-      return init({ level: state.level });
+      return init({ level: state.level, tutorialsSeen: action.tutorialsSeen });
     default:
       return state;
   }
@@ -142,15 +145,46 @@ function updatePredictionStats(stats, result) {
   };
 }
 
-// levelConfig overrides levelId — pass a full level object for custom mazes.
-export default function GameBoard({ levelId, levelConfig, difficulty = 'standard', onComplete, onBack, onJournalOpen, journalCount }) {
+export default function GameBoard({
+  levelId,
+  levelConfig,
+  difficulty = 'standard',
+  tutorialsSeen = { linearSeen: false, binarySeen: false },
+  onComplete,
+  onBack,
+  onJournalOpen,
+  journalCount,
+}) {
   const baseLevel = levelConfig || getLevel(levelId);
   const level = useMemo(() => applyDifficulty(baseLevel, difficulty), [baseLevel, difficulty]);
-  const [state, dispatch] = useReducer(reducer, { level }, init);
+  const [state, dispatch] = useReducer(
+    reducer,
+    { level, tutorialsSeen },
+    init
+  );
+
   const linearPath = useMemo(
     () => getLinearSeekerPath(state.treasureIndex, state.level.doorCount),
     [state.treasureIndex, state.level.doorCount]
   );
+
+  const warmPath = useMemo(
+    () => (level.warmSeekerRace ? getWarmSeekerPath(state.treasureIndex, state.level.doorCount) : []),
+    [level.warmSeekerRace, state.treasureIndex, state.level.doorCount]
+  );
+
+  const showWarmRace = !!level.warmSeekerRace;
+  const showPennyRace = level.feedbackType === 'direction' && (level.id === 4 || level.id === 5 || level.slowSeekerRace);
+  const rivalPath = showWarmRace ? warmPath : linearPath;
+  const rivalKind = showWarmRace ? 'warm' : 'linear';
+
+  const rivalDoorsOpened = useMemo(() => {
+    const playerMoves = state.attempts.length;
+    if (playerMoves === 0) return 0;
+    return Math.min(rivalPath.length, playerMoves);
+  }, [state.attempts.length, rivalPath]);
+
+  const rivalDoorIndex = rivalDoorsOpened > 0 ? rivalPath[rivalDoorsOpened - 1] : null;
 
   useEffect(() => {
     if (state.status === 'won' || state.status === 'lost') {
@@ -163,7 +197,7 @@ export default function GameBoard({ levelId, levelConfig, difficulty = 'standard
           status: state.status,
           stars,
           predictions: state.predictionStats,
-          race: buildRaceResult(state, linearPath),
+          race: buildRaceResult(state, rivalPath, rivalKind),
           difficulty,
         });
       }, state.status === 'won' ? 1100 : 1400);
@@ -180,14 +214,32 @@ export default function GameBoard({ levelId, levelConfig, difficulty = 'standard
   }, [state.zonePulseToken]);
 
   const handleOpen = (idx) => dispatch({ type: 'OPEN', doorIndex: idx });
+
   const isLarge = level.doorCount > 20;
   const isDirection = level.feedbackType === 'direction';
   const suggestedMiddle = getSuggestedMiddle(state.searchBounds);
-  const showMiddleHint = shouldShowMiddleHint(state, difficulty);
-  const showRace = isDirection && (level.id === 4 || level.id === 5 || level.slowSeekerRace);
-  const livePennyChecks = Math.min(level.doorCount, state.attempts.length * 3);
-  const liveRaceSavings = Math.max(0, livePennyChecks - state.attempts.length);
-  const doorsNeedPrediction = isDirection && state.status === 'playing' && state.pendingPrediction === null;
+
+  const hintPolicy = getHintPolicy({
+    level,
+    difficulty,
+    attemptCount: state.attempts.length,
+    searchBounds: state.searchBounds,
+    middleHintDismissed: state.middleHintDismissed,
+    status: state.status,
+    lastFeedback: state.lastFeedback,
+    openingHintShown: state.openingHintShown,
+  });
+
+  const showMiddleHighlight =
+    level.showMiddleHint &&
+    isDirection &&
+    state.status === 'playing' &&
+    suggestedMiddle !== null;
+
+  const showRace = showWarmRace || showPennyRace;
+  const liveRaceSavings = Math.max(0, rivalDoorsOpened - state.attempts.length);
+  const optionalPredictionLevel = level.id === 4 || level.id === 5;
+  const showPredictionBar = isDirection && optionalPredictionLevel && state.predictionEnabled;
 
   return (
     <>
@@ -196,37 +248,57 @@ export default function GameBoard({ levelId, levelConfig, difficulty = 'standard
         moves={state.attempts.length}
         searchBounds={state.searchBounds}
         pulseZone={!!state.zonePulseToken}
+        difficulty={difficulty}
         onBack={onBack}
         onJournalOpen={onJournalOpen}
         journalCount={journalCount}
       />
 
-      <FeedbackPanel feedback={state.lastFeedback} level={level} predictionResult={state.lastPredictionResult} />
+      <FeedbackPanel
+        feedback={state.lastFeedback}
+        level={state.level}
+        predictionResult={state.lastPredictionResult}
+      />
 
       {showRace && (
         <SlowSeekerRace
           playerMoves={state.attempts.length}
-          linearMoves={livePennyChecks}
+          linearMoves={rivalDoorsOpened}
           doorCount={level.doorCount}
           gap={liveRaceSavings}
+          rivalName={showWarmRace ? 'Blaze the Warm Seeker' : 'Penny the Linear Seeker'}
+          rivalShortName={showWarmRace ? 'Blaze' : 'Penny'}
         />
       )}
 
       <SearchBracket bounds={state.searchBounds} doorCount={level.doorCount} pulse={!!state.zonePulseToken} />
 
-      {isDirection && (
+      {isDirection && optionalPredictionLevel && !state.predictionEnabled && state.status === 'playing' && (
+        <div className="prediction-optional">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => dispatch({ type: 'ENABLE_PREDICTION' })}
+          >
+            Optional: predict Left/Right before each door
+          </button>
+        </div>
+      )}
+
+      {showPredictionBar && (
         <PredictionBar
           value={state.pendingPrediction}
           disabled={state.status !== 'playing'}
+          optional
           onChoose={(prediction) => dispatch({ type: 'SET_PREDICTION', prediction })}
-          onSkip={() => dispatch({ type: 'SKIP_PREDICTION' })}
+          onSkip={() => dispatch({ type: 'SET_PREDICTION', prediction: 'skip' })}
         />
       )}
 
-      <MiddleDoorHint
-        doorNumber={suggestedMiddle === null ? null : suggestedMiddle + 1}
-        visible={showMiddleHint}
+      <ContextualHint
+        policy={hintPolicy}
         difficulty={difficulty}
+        binarySeen={tutorialsSeen.binarySeen}
       />
 
       <div
@@ -239,16 +311,23 @@ export default function GameBoard({ levelId, levelConfig, difficulty = 'standard
             (i >= state.searchBounds.left && i <= state.searchBounds.right);
           const eliminated = state.searchBounds !== null && !state.tried[i] && !inBounds;
           const isReveal = state.status === 'lost' && i === state.treasureIndex;
+          const isPennyHere = showPennyRace && rivalDoorIndex === i && state.status === 'playing';
+          const isBlazeHere = showWarmRace && rivalDoorIndex === i && state.status === 'playing';
           return (
             <Door
               key={i}
               index={i}
               displayNumber={i + 1}
               attempt={state.tried[i]}
-              disabled={state.status !== 'playing' || doorsNeedPrediction}
+              disabled={
+                state.status !== 'playing' ||
+                (state.predictionEnabled && state.pendingPrediction === null)
+              }
               eliminated={eliminated}
               isReveal={isReveal}
-              suggested={showMiddleHint && suggestedMiddle === i}
+              suggested={showMiddleHighlight && suggestedMiddle === i}
+              pennyHere={isPennyHere}
+              blazeHere={isBlazeHere}
               onOpen={handleOpen}
             />
           );
@@ -256,29 +335,17 @@ export default function GameBoard({ levelId, levelConfig, difficulty = 'standard
       </div>
 
       <ClueHistory attempts={state.attempts} />
-      {doorsNeedPrediction && (
-        <div className="prediction__nudge">Choose Left, Right, or Skip Guess to open a door.</div>
-      )}
     </>
   );
 }
 
-function shouldShowMiddleHint(state, difficulty) {
-  if (!state.searchBounds || state.middleHintDismissed || state.status !== 'playing') return false;
-  if (difficulty === 'expert') return false;
-  if (difficulty === 'easy') return true;
-
-  const remaining = getDoorWindowSize(state.searchBounds);
-  const missedMiddles = state.attempts.filter((attempt) => !isNearMiddle(attempt.doorIndex, attempt.boundsBefore || state.searchBounds)).length;
-  const hasNearMiddle = state.attempts.some((attempt) => isNearMiddle(attempt.doorIndex, attempt.boundsBefore || state.searchBounds));
-  return missedMiddles >= 2 || (remaining > 8 && !hasNearMiddle);
-}
-
-function buildRaceResult(state, linearPath) {
-  const linearMoves = linearPath.length;
-  const gap = Math.max(0, linearMoves - state.attempts.length);
+function buildRaceResult(state, rivalPath, rivalKind) {
+  const rivalMoves = rivalPath.length;
+  const gap = Math.max(0, rivalMoves - state.attempts.length);
   return {
-    linearMoves,
+    linearMoves: rivalKind === 'linear' ? rivalMoves : undefined,
+    warmMoves: rivalKind === 'warm' ? rivalMoves : undefined,
+    rivalKind,
     gap,
     beatSlowSeeker: state.status === 'won' && gap > 0,
   };

@@ -1,6 +1,6 @@
 'use client';
 
-export default function HUD({ level, moves, searchBounds, pulseZone, onBack, onJournalOpen, journalCount }) {
+export default function HUD({ level, moves, searchBounds, pulseZone, difficulty, onBack, onJournalOpen, journalCount }) {
   const remaining = level.moveLimit ? level.moveLimit - moves : null;
   const warn = remaining !== null && remaining <= 2;
   const doorsLeft = searchBounds ? searchBounds.right - searchBounds.left + 1 : null;
@@ -12,6 +12,9 @@ export default function HUD({ level, moves, searchBounds, pulseZone, onBack, onJ
 
       <div className="hud__title">
         <span>LEVEL {level.id === 'custom' ? '6' : level.id}</span>{level.name}
+        {difficulty === 'expert' && (
+          <span className="hud__expert-badge">Expert — No hints</span>
+        )}
       </div>
 
       <div className="hud__stats">

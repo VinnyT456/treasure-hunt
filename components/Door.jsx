@@ -1,6 +1,6 @@
 'use client';
 
-export default function Door({ index, displayNumber, attempt, disabled, eliminated, isReveal, suggested, onOpen }) {
+export default function Door({ index, displayNumber, attempt, disabled, eliminated, isReveal, suggested, pennyHere, blazeHere, onOpen }) {
   const isTried = !!attempt;
   const isFound = attempt?.feedback?.kind === 'found';
 
@@ -22,7 +22,9 @@ export default function Door({ index, displayNumber, attempt, disabled, eliminat
       'door-wrap' +
       (eliminated ? ' door-wrap--eliminated' : '') +
       (isReveal ? ' door-wrap--reveal' : '') +
-      (suggested && !isTried && !eliminated ? ' door-wrap--suggested' : '')
+      (suggested && !isTried && !eliminated ? ' door-wrap--suggested' : '') +
+      (pennyHere ? ' door-wrap--penny' : '') +
+      (blazeHere ? ' door-wrap--blaze' : '')
     }>
       <button
         className={
@@ -38,9 +40,16 @@ export default function Door({ index, displayNumber, attempt, disabled, eliminat
           isReveal
             ? `Door ${displayNumber} — treasure was here!`
             : `Door ${displayNumber}` + (isTried ? `, ${badgeText || 'already tried'}` : '') +
-              (eliminated ? ', eliminated' : '')
+              (eliminated ? ', eliminated' : '') +
+              (suggested && !isTried && !eliminated ? ', suggested middle' : '')
         }
       >
+        {pennyHere && !isTried && (
+          <span className="door__penny" aria-label="Penny is here">P</span>
+        )}
+        {blazeHere && !isTried && (
+          <span className="door__blaze" aria-label="Blaze is here">B</span>
+        )}
         {suggested && !isTried && !eliminated && (
           <span className="door__hint-ring" aria-hidden="true">middle</span>
         )}
